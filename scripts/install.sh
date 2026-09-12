@@ -48,7 +48,7 @@ else
 fi
 
 echo "-- Baue joycond..."
-(cd "$JOYCOND_DIR" && sudo make && sudo make install)
+(cd "$JOYCOND_DIR" && sudo cmake . && sudo make && sudo make install)
 
 echo "-- Aktiviere joycond-Dienst..."
 sudo systemctl enable --now joycond
