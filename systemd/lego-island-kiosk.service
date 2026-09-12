@@ -1,0 +1,20 @@
+# Vorlage fuer X11-Systeme mit Auto-Login in eine grafische Sitzung.
+# Pfade und User vor der Installation anpassen!
+# Installation: siehe autostart/README.md, Variante C.
+
+[Unit]
+Description=LEGO Island Kiosk (island.pizza)
+After=graphical.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/pi/.Xauthority
+ExecStart=/home/pi/lego-island-pi/scripts/start-kiosk.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target
