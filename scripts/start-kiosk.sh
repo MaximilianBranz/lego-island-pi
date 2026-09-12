@@ -12,11 +12,23 @@ if ! command -v "$CHROMIUM_BIN" >/dev/null; then
 fi
 
 # Mauszeiger nach kurzer Inaktivitaet ausblenden (fuer TV-Betrieb).
-if command -v unclutter >/dev/null; then
+# unclutter ist X11-only - unter Wayland (labwc) ueberspringen, sonst
+# schlaegt es fehlerlos fehl ("could not open display").
+if [ "${XDG_SESSION_TYPE:-}" != "wayland" ] && [ -z "${WAYLAND_DISPLAY:-}" ] \
+   && command -v unclutter >/dev/null; then
   unclutter -idle 0.5 -root &
 fi
 
+# Unter Wayland muss Chromium explizit dazu gebracht werden, den
+# Wayland-Backend zu nutzen - sonst faellt es auf X11 zurueck und findet
+# kein $DISPLAY (Absturz beim Start).
+OZONE_ARGS=()
+if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  OZONE_ARGS=(--ozone-platform=wayland --enable-features=UseOzonePlatform)
+fi
+
 exec "$CHROMIUM_BIN" \
+  "${OZONE_ARGS[@]}" \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \
