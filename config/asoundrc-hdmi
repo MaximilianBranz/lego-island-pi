@@ -1,0 +1,17 @@
+# Pinnt die ALSA "default" Ausgabe fest auf den HDMI0-Ausgang, per Name statt
+# Kartennummer. Grund: der Pi hat noch eine HiFiBerry DAC8x (fuers separate
+# Lautsprecher/Mess-Projekt) und wird gelegentlich mit einem USB-Messmikrofon
+# betrieben. Beides soll vom Kiosk-Browser niemals angefasst werden, auch
+# nicht falls sich die ALSA-Kartennummerierung durch das USB-Geraet mal
+# verschiebt.
+#
+# Installation: cp config/asoundrc-hdmi ~/.asoundrc
+pcm.!default {
+    type plug
+    slave.pcm "hw:vc4hdmi0,0"
+}
+
+ctl.!default {
+    type hw
+    card vc4hdmi0
+}
