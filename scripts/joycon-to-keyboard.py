@@ -38,10 +38,14 @@ BUTTON_MAP = {
     ecodes.BTN_DPAD_DOWN: [(ecodes.EV_KEY, ecodes.KEY_DOWN)],
     ecodes.BTN_DPAD_LEFT: [(ecodes.EV_KEY, ecodes.KEY_LEFT)],
     ecodes.BTN_DPAD_RIGHT: [(ecodes.EV_KEY, ecodes.KEY_RIGHT)],
-    ecodes.BTN_SOUTH: [(ecodes.EV_KEY, ecodes.KEY_ENTER), (ecodes.EV_KEY, ecodes.BTN_LEFT)],  # A
-    ecodes.BTN_EAST: [(ecodes.EV_KEY, ecodes.KEY_ESC)],       # B
-    ecodes.BTN_WEST: [(ecodes.EV_KEY, ecodes.KEY_SPACE)],     # X
-    ecodes.BTN_NORTH: [(ecodes.EV_KEY, ecodes.KEY_LEFTCTRL)], # Y
+    # Achtung: hid_nintendo benennt Codes nach physischer Position
+    # (Xbox-Konvention), nicht nach Nintendo-Aufdruck. Bei Nintendo sitzt
+    # A rechts (=BTN_EAST), B unten (=BTN_SOUTH), X oben (=BTN_NORTH),
+    # Y links (=BTN_WEST).
+    ecodes.BTN_EAST: [(ecodes.EV_KEY, ecodes.KEY_ENTER), (ecodes.EV_KEY, ecodes.BTN_LEFT)],  # A
+    ecodes.BTN_SOUTH: [(ecodes.EV_KEY, ecodes.KEY_ESC)],      # B
+    ecodes.BTN_NORTH: [(ecodes.EV_KEY, ecodes.KEY_SPACE)],    # X
+    ecodes.BTN_WEST: [(ecodes.EV_KEY, ecodes.KEY_LEFTCTRL)],  # Y
     ecodes.BTN_START: [(ecodes.EV_KEY, ecodes.KEY_ENTER)],
     ecodes.BTN_SELECT: [(ecodes.EV_KEY, ecodes.KEY_ESC)],
 }
