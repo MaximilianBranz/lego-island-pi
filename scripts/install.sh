@@ -22,7 +22,8 @@ sudo apt install -y --no-install-recommends \
   joystick evtest \
   unclutter \
   git build-essential cmake pkg-config \
-  libevdev-dev libudev-dev
+  libevdev-dev libudev-dev \
+  python3-evdev
 
 echo "-- Chromium-Paket: $CHROMIUM_PKG"
 
@@ -52,6 +53,16 @@ echo "-- Baue joycond..."
 
 echo "-- Aktiviere joycond-Dienst..."
 sudo systemctl enable --now joycond
+
+# joycon-to-keyboard: uebersetzt den (von Chromium nicht als "standard"
+# erkannten) kombinierten Joy-Con-Controller in virtuelle Tastatureingaben.
+echo "-- Richte joycon-to-keyboard Dienst ein..."
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+sudo mkdir -p /opt/lego-island-pi/scripts
+sudo cp "$PROJECT_DIR/scripts/joycon-to-keyboard.py" /opt/lego-island-pi/scripts/
+sudo cp "$PROJECT_DIR/systemd/joycon-to-keyboard.service" /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now joycon-to-keyboard
 
 echo
 echo "== Fertig =="

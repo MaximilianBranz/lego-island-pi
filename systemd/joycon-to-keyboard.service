@@ -1,0 +1,15 @@
+[Unit]
+Description=Joy-Con zu Tastatur Uebersetzer (fuer LEGO Island Kiosk)
+After=joycond.service
+Requires=joycond.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 /opt/lego-island-pi/scripts/joycon-to-keyboard.py
+Restart=on-failure
+RestartSec=2
+# Braucht Root fuer /dev/uinput.
+User=root
+
+[Install]
+WantedBy=multi-user.target

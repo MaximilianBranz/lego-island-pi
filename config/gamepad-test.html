@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>Gamepad Test</title></head>
+<body style="background:#000;color:#0f0;font-family:monospace;font-size:28px;padding:20px;">
+<div id="out">Warte auf Gamepad... Taste druecken</div>
+<script>
+window.addEventListener('gamepadconnected', function (e) {
+  document.title = 'CONNECTED: ' + e.gamepad.id;
+});
+function poll() {
+  var gps = navigator.getGamepads();
+  var html = 'navigator.getGamepads().length = ' + gps.length + '<br><br>';
+  for (var i = 0; i < gps.length; i++) {
+    var gp = gps[i];
+    if (!gp) { html += '[' + i + '] leer<br>'; continue; }
+    html += '[' + i + '] ' + gp.id + '<br>';
+    html += 'mapping = "' + gp.mapping + '"<br>';
+    html += 'Buttons: ' + gp.buttons.map(function(b){return b.pressed ? '1' : '0';}).join('') + '<br>';
+    html += 'Axes: ' + gp.axes.map(function(a){return a.toFixed(2);}).join(', ') + '<br><br>';
+  }
+  document.getElementById('out').innerHTML = html;
+  requestAnimationFrame(poll);
+}
+poll();
+</script>
+</body>
+</html>
