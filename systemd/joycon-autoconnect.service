@@ -1,0 +1,14 @@
+[Unit]
+Description=Joy-Con automatische Wiederverbindung nach dem Boot
+After=bluetooth.service joycond.service
+Requires=bluetooth.service
+
+[Service]
+Type=simple
+# 600s = 10 Minuten lang alle 5s versuchen. Dauer per Argument anpassbar.
+ExecStart=/opt/lego-island-pi/scripts/joycon-autoconnect.sh 600
+# Kein Restart noetig - das Skript laeuft die gewuenschte Dauer und
+# beendet sich danach von selbst sauber.
+
+[Install]
+WantedBy=multi-user.target

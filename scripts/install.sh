@@ -64,6 +64,14 @@ sudo cp "$PROJECT_DIR/systemd/joycon-to-keyboard.service" /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now joycon-to-keyboard
 
+# joycon-autoconnect: versucht nach jedem Boot eine Weile lang, bekannte
+# Joy-Cons automatisch per Bluetooth wiederzuverbinden.
+echo "-- Richte joycon-autoconnect Dienst ein..."
+sudo cp "$PROJECT_DIR/scripts/joycon-autoconnect.sh" /opt/lego-island-pi/scripts/
+sudo cp "$PROJECT_DIR/systemd/joycon-autoconnect.service" /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now joycon-autoconnect
+
 echo
 echo "== Fertig =="
 echo "Naechster Schritt: Joy-Cons koppeln mit scripts/pair-joycons.sh"
