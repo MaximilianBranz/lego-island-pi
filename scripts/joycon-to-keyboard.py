@@ -54,20 +54,21 @@ BUTTON_MAP = {
 }
 
 # Linker Stick X = links/rechts (Drehen), rechter Stick Y = vor/zurueck ->
-# Pfeiltasten (digital, mit Hysterese gegen Flackern)
+# Pfeiltasten (digital, mit Hysterese gegen Flackern). Schwellwerte pro
+# Achse einzeln einstellbar - links/rechts absichtlich unempfindlicher als
+# vor/zurueck, damit man nicht schon bei leichtem Wackeln lenkt.
 STICK_AXES = {
-    ecodes.ABS_X: (ecodes.KEY_LEFT, ecodes.KEY_RIGHT),
-    ecodes.ABS_RY: (ecodes.KEY_UP, ecodes.KEY_DOWN),
+    # Achse: (negative Taste, positive Taste, Press-Schwelle, Release-Schwelle)
+    ecodes.ABS_X: (ecodes.KEY_LEFT, ecodes.KEY_RIGHT, 0.75, 0.55),
+    ecodes.ABS_RY: (ecodes.KEY_UP, ecodes.KEY_DOWN, 0.5, 0.3),
 }
-PRESS_THRESHOLD = 0.5
-RELEASE_THRESHOLD = 0.3
 
 # Rechter Stick -> Mauszeiger (kontinuierlich)
 MOUSE_AXES = {ecodes.ABS_RX: "x", ecodes.ABS_RY: "y"}
 
 ALL_KEYS = sorted(
     {code for outs in BUTTON_MAP.values() for (typ, code) in outs if typ == ecodes.EV_KEY}
-    | {k for pair in STICK_AXES.values() for k in pair}
+    | {key for cfg in STICK_AXES.values() for key in cfg[:2]}
 )
 
 
@@ -103,7 +104,7 @@ def run():
         },
         name="joycon-virtual-input",
     )
-    stick_state = {code: False for pair in STICK_AXES.values() for code in pair}
+    stick_state = {key: False for cfg in STICK_AXES.values() for key in cfg[:2]}
     mouse_axis = {"x": 0.0, "y": 0.0}
 
     print("joycon-to-keyboard: warte auf Geraet...", flush=True)
@@ -132,13 +133,13 @@ def run():
                             # Kein elif zwischen STICK_AXES/MOUSE_AXES: ABS_RY
                             # speist beides gleichzeitig (Pfeiltaste UND Maus).
                             if event.code in STICK_AXES:
-                                neg_key, pos_key = STICK_AXES[event.code]
+                                neg_key, pos_key, press_th, release_th = STICK_AXES[event.code]
                                 val = normalize(dev, event.code, event.value)
                                 for key, active_now in (
-                                    (neg_key, val <= -PRESS_THRESHOLD),
-                                    (pos_key, val >= PRESS_THRESHOLD),
+                                    (neg_key, val <= -press_th),
+                                    (pos_key, val >= press_th),
                                 ):
-                                    released = -RELEASE_THRESHOLD < val < RELEASE_THRESHOLD
+                                    released = -release_th < val < release_th
                                     if active_now and not stick_state[key]:
                                         ui.write(ecodes.EV_KEY, key, 1)
                                         ui.syn()
