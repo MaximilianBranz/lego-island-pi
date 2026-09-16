@@ -54,6 +54,17 @@ echo "-- Baue joycond..."
 echo "-- Aktiviere joycond-Dienst..."
 sudo systemctl enable --now joycond
 
+# BlueZ-Fix: Joy-Cons (v.a. der rechte) haben ohne diese Einstellung nach
+# Sleep/Reboot oft eine ungueltige Bonding-Info und scheitern beim
+# Reconnect mit "br-connection-create-socket", obwohl sie noch als
+# gekoppelt gelten. JustWorksRepairing erlaubt BlueZ, die Kopplung im
+# Hintergrund automatisch zu erneuern, statt hart abzubrechen.
+if ! grep -q "^JustWorksRepairing" /etc/bluetooth/main.conf 2>/dev/null; then
+  echo "-- Aktiviere JustWorksRepairing in /etc/bluetooth/main.conf..."
+  sudo sed -i '/^\[General\]/a JustWorksRepairing = always' /etc/bluetooth/main.conf
+  sudo systemctl restart bluetooth
+fi
+
 # joycon-to-keyboard: uebersetzt den (von Chromium nicht als "standard"
 # erkannten) kombinierten Joy-Con-Controller in virtuelle Tastatureingaben.
 echo "-- Richte joycon-to-keyboard Dienst ein..."
