@@ -12,12 +12,15 @@ erzeugt - die kann jede Webseite lesen.
 
 Aufteilung (passend zu island.pizza: Menue ist reine Maus-UI, das
 eigentliche Spiel wird mit Pfeiltasten gesteuert):
-  - Linker Stick + D-Pad -> Pfeiltasten (Spielsteuerung)
-  - Rechter Stick        -> Mauszeiger bewegen (Menuenavigation)
-  - A                    -> Enter UND Linksklick
-  - B                    -> Escape
-  - X                    -> Leertaste
-  - Y                    -> Linke Strg-Taste
+  - Linker Stick X (links/rechts)  -> Pfeiltasten links/rechts (Drehen/Lenken)
+  - Rechter Stick Y (vor/zurueck)  -> Pfeiltasten hoch/runter (Vorwaerts/Rueckwaerts)
+  - D-Pad                          -> Pfeiltasten (alle 4 Richtungen)
+  - Rechter Stick (beide Achsen)   -> zusaetzlich Mauszeiger (Menuenavigation,
+                                       laeuft parallel zu den Pfeiltasten)
+  - A                              -> Enter UND Linksklick
+  - B                              -> Escape
+  - X                              -> Leertaste
+  - Y                              -> Linke Strg-Taste
 
 Muss als root laufen (Zugriff auf /dev/uinput). Wird ueber
 systemd/joycon-to-keyboard.service verwaltet.
@@ -50,10 +53,11 @@ BUTTON_MAP = {
     ecodes.BTN_SELECT: [(ecodes.EV_KEY, ecodes.KEY_ESC)],
 }
 
-# Linker Stick -> Pfeiltasten (digital, mit Hysterese gegen Flackern)
+# Linker Stick X = links/rechts (Drehen), rechter Stick Y = vor/zurueck ->
+# Pfeiltasten (digital, mit Hysterese gegen Flackern)
 STICK_AXES = {
     ecodes.ABS_X: (ecodes.KEY_LEFT, ecodes.KEY_RIGHT),
-    ecodes.ABS_Y: (ecodes.KEY_UP, ecodes.KEY_DOWN),
+    ecodes.ABS_RY: (ecodes.KEY_UP, ecodes.KEY_DOWN),
 }
 PRESS_THRESHOLD = 0.5
 RELEASE_THRESHOLD = 0.3
@@ -124,25 +128,28 @@ def run():
                                     ui.write(typ, code, event.value)
                                 ui.syn()
 
-                        elif event.type == ecodes.EV_ABS and event.code in STICK_AXES:
-                            neg_key, pos_key = STICK_AXES[event.code]
-                            val = normalize(dev, event.code, event.value)
-                            for key, active_now in (
-                                (neg_key, val <= -PRESS_THRESHOLD),
-                                (pos_key, val >= PRESS_THRESHOLD),
-                            ):
-                                released = -RELEASE_THRESHOLD < val < RELEASE_THRESHOLD
-                                if active_now and not stick_state[key]:
-                                    ui.write(ecodes.EV_KEY, key, 1)
-                                    ui.syn()
-                                    stick_state[key] = True
-                                elif released and stick_state[key]:
-                                    ui.write(ecodes.EV_KEY, key, 0)
-                                    ui.syn()
-                                    stick_state[key] = False
+                        elif event.type == ecodes.EV_ABS:
+                            # Kein elif zwischen STICK_AXES/MOUSE_AXES: ABS_RY
+                            # speist beides gleichzeitig (Pfeiltaste UND Maus).
+                            if event.code in STICK_AXES:
+                                neg_key, pos_key = STICK_AXES[event.code]
+                                val = normalize(dev, event.code, event.value)
+                                for key, active_now in (
+                                    (neg_key, val <= -PRESS_THRESHOLD),
+                                    (pos_key, val >= PRESS_THRESHOLD),
+                                ):
+                                    released = -RELEASE_THRESHOLD < val < RELEASE_THRESHOLD
+                                    if active_now and not stick_state[key]:
+                                        ui.write(ecodes.EV_KEY, key, 1)
+                                        ui.syn()
+                                        stick_state[key] = True
+                                    elif released and stick_state[key]:
+                                        ui.write(ecodes.EV_KEY, key, 0)
+                                        ui.syn()
+                                        stick_state[key] = False
 
-                        elif event.type == ecodes.EV_ABS and event.code in MOUSE_AXES:
-                            mouse_axis[MOUSE_AXES[event.code]] = normalize(dev, event.code, event.value)
+                            if event.code in MOUSE_AXES:
+                                mouse_axis[MOUSE_AXES[event.code]] = normalize(dev, event.code, event.value)
 
                 now = time.monotonic()
                 if now >= next_tick:
