@@ -6,8 +6,9 @@ Projekt [isledecomp/isle.pizza](https://github.com/isledecomp/isle.pizza))
 startet – gesteuert mit zwei zu einem Controller kombinierten
 Nintendo-Switch-Joy-Cons.
 
-**Status: läuft.** Kiosk-Autostart, Controller-Kombinieren und Steuerung
-sind auf einem Raspberry Pi 5 (Debian 13/trixie, labwc/Wayland) getestet.
+**Status: läuft komplett.** Kiosk-Autostart, Controller-Kombinieren,
+Steuerung (Pfeiltasten + Maus) und Ton über HDMI sind auf einem Raspberry
+Pi 5 (Debian 13/trixie, labwc/Wayland) getestet und funktionieren.
 
 ## Wie die Steuerung funktioniert
 
