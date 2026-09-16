@@ -12,7 +12,8 @@ erzeugt - die kann jede Webseite lesen.
 
 Aufteilung (passend zu island.pizza: Menue ist reine Maus-UI, das
 eigentliche Spiel wird mit Pfeiltasten gesteuert):
-  - Linker Stick X (links/rechts)  -> Pfeiltasten links/rechts (Drehen/Lenken)
+  - Linker + rechter Stick X       -> Pfeiltasten links/rechts (Drehen/Lenken,
+                                       beide Sticks steuern das gleichzeitig)
   - Rechter Stick Y (vor/zurueck)  -> Pfeiltasten hoch/runter (Vorwaerts/Rueckwaerts)
   - D-Pad                          -> Pfeiltasten (alle 4 Richtungen)
   - Rechter Stick (beide Achsen)   -> zusaetzlich Mauszeiger (Menuenavigation,
@@ -32,7 +33,7 @@ from evdev import ecodes, UInput, InputDevice
 
 DEVICE_NAME = "Nintendo Switch Combined Joy-Cons"
 TICK_SECONDS = 1.0 / 60  # fuer die Mauszeiger-Bewegung (60 Hz)
-MOUSE_MAX_SPEED = 18     # Pixel pro Tick bei voll ausgelenktem Stick
+MOUSE_MAX_SPEED = 18     # Pixel pro Tick bei voll ausgelenktem Stick (quadratische Kurve)
 MOUSE_DEADZONE = 0.20
 
 # Digitale Tasten-Zuordnung: Joy-Con-Button -> Liste virtueller Ausgaben
@@ -53,13 +54,14 @@ BUTTON_MAP = {
     ecodes.BTN_SELECT: [(ecodes.EV_KEY, ecodes.KEY_ESC)],
 }
 
-# Linker Stick X = links/rechts (Drehen), rechter Stick Y = vor/zurueck ->
+# Beide Sticks X = links/rechts (Drehen), rechter Stick Y = vor/zurueck ->
 # Pfeiltasten (digital, mit Hysterese gegen Flackern). Schwellwerte pro
 # Achse einzeln einstellbar - links/rechts absichtlich unempfindlicher als
 # vor/zurueck, damit man nicht schon bei leichtem Wackeln lenkt.
 STICK_AXES = {
     # Achse: (negative Taste, positive Taste, Press-Schwelle, Release-Schwelle)
     ecodes.ABS_X: (ecodes.KEY_LEFT, ecodes.KEY_RIGHT, 0.75, 0.55),
+    ecodes.ABS_RX: (ecodes.KEY_LEFT, ecodes.KEY_RIGHT, 0.75, 0.55),  # rechter Stick, auch links/rechts
     ecodes.ABS_RY: (ecodes.KEY_UP, ecodes.KEY_DOWN, 0.5, 0.3),
 }
 
@@ -70,6 +72,16 @@ ALL_KEYS = sorted(
     {code for outs in BUTTON_MAP.values() for (typ, code) in outs if typ == ecodes.EV_KEY}
     | {key for cfg in STICK_AXES.values() for key in cfg[:2]}
 )
+
+# Mehrere Achsen koennen dieselbe Taste bedienen (z.B. beide Sticks ->
+# links/rechts). Damit ein losgelassener Stick eine Taste nicht faelschlich
+# loslaesst, die der ANDERE Stick noch haelt, wird der Zustand pro Achse
+# getrennt verfolgt und die Taste erst dann losgelassen, wenn KEINE Achse
+# mehr aktiv ist.
+KEY_SOURCES = {}
+for _axis, (_neg, _pos, *_th) in STICK_AXES.items():
+    KEY_SOURCES.setdefault(_neg, []).append((_axis, False))
+    KEY_SOURCES.setdefault(_pos, []).append((_axis, True))
 
 
 def find_device():
@@ -104,8 +116,11 @@ def run():
         },
         name="joycon-virtual-input",
     )
-    stick_state = {key: False for cfg in STICK_AXES.values() for key in cfg[:2]}
+    # Aktivierungs-Status je (Achse, Richtung) - siehe KEY_SOURCES oben.
+    axis_dir_active = {(axis, is_pos): False for axis in STICK_AXES for is_pos in (False, True)}
+    key_state = {key: False for cfg in STICK_AXES.values() for key in cfg[:2]}
     mouse_axis = {"x": 0.0, "y": 0.0}
+    mouse_remainder = {"x": 0.0, "y": 0.0}  # Nachkommaanteil fuer feine Aufloesung
 
     print("joycon-to-keyboard: warte auf Geraet...", flush=True)
     while True:
@@ -135,31 +150,50 @@ def run():
                             if event.code in STICK_AXES:
                                 neg_key, pos_key, press_th, release_th = STICK_AXES[event.code]
                                 val = normalize(dev, event.code, event.value)
-                                for key, active_now in (
-                                    (neg_key, val <= -press_th),
-                                    (pos_key, val >= press_th),
+                                released = -release_th < val < release_th
+                                for key, is_pos, active_now in (
+                                    (neg_key, False, val <= -press_th),
+                                    (pos_key, True, val >= press_th),
                                 ):
-                                    released = -release_th < val < release_th
-                                    if active_now and not stick_state[key]:
-                                        ui.write(ecodes.EV_KEY, key, 1)
+                                    axis_dir = (event.code, is_pos)
+                                    if active_now:
+                                        axis_dir_active[axis_dir] = True
+                                    elif released:
+                                        axis_dir_active[axis_dir] = False
+                                    # sonst (zwischen Release- und Press-Schwelle):
+                                    # vorherigen Zustand beibehalten (Hysterese)
+
+                                    should_be = any(
+                                        axis_dir_active[(a, p)] for a, p in KEY_SOURCES[key]
+                                    )
+                                    if should_be != key_state[key]:
+                                        ui.write(ecodes.EV_KEY, key, 1 if should_be else 0)
                                         ui.syn()
-                                        stick_state[key] = True
-                                    elif released and stick_state[key]:
-                                        ui.write(ecodes.EV_KEY, key, 0)
-                                        ui.syn()
-                                        stick_state[key] = False
+                                        key_state[key] = should_be
 
                             if event.code in MOUSE_AXES:
                                 mouse_axis[MOUSE_AXES[event.code]] = normalize(dev, event.code, event.value)
 
                 now = time.monotonic()
                 if now >= next_tick:
-                    dx = apply_deadzone(mouse_axis["x"], MOUSE_DEADZONE) * MOUSE_MAX_SPEED
-                    dy = apply_deadzone(mouse_axis["y"], MOUSE_DEADZONE) * MOUSE_MAX_SPEED
-                    if dx or dy:
-                        ui.write(ecodes.EV_REL, ecodes.REL_X, int(dx))
-                        ui.write(ecodes.EV_REL, ecodes.REL_Y, int(dy))
+                    for axis_name in ("x", "y"):
+                        v = apply_deadzone(mouse_axis[axis_name], MOUSE_DEADZONE)
+                        # Quadratische Kurve: feine, praezise Bewegung bei
+                        # leichtem Auslenken, volles Tempo erst bei starkem.
+                        curved = (v * v) * (1.0 if v >= 0 else -1.0)
+                        mouse_remainder[axis_name] += curved * MOUSE_MAX_SPEED
+
+                    dx_int = int(mouse_remainder["x"])
+                    dy_int = int(mouse_remainder["y"])
+                    if dx_int or dy_int:
+                        ui.write(ecodes.EV_REL, ecodes.REL_X, dx_int)
+                        ui.write(ecodes.EV_REL, ecodes.REL_Y, dy_int)
                         ui.syn()
+                        # Nachkommaanteil behalten statt zu verwerfen -
+                        # sorgt fuer feine Aufloesung auch bei langsamer,
+                        # gleichmaessiger Bewegung statt "Treppenstufen".
+                        mouse_remainder["x"] -= dx_int
+                        mouse_remainder["y"] -= dy_int
                     next_tick = now + TICK_SECONDS
 
         except OSError:
@@ -168,9 +202,12 @@ def run():
                 ui.write(ecodes.EV_KEY, key, 0)
             ui.write(ecodes.EV_KEY, ecodes.BTN_LEFT, 0)
             ui.syn()
-            for k in stick_state:
-                stick_state[k] = False
+            for k in key_state:
+                key_state[k] = False
+            for k in axis_dir_active:
+                axis_dir_active[k] = False
             mouse_axis["x"] = mouse_axis["y"] = 0.0
+            mouse_remainder["x"] = mouse_remainder["y"] = 0.0
             time.sleep(1)
 
 
