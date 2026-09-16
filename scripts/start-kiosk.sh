@@ -27,8 +27,17 @@ if [ -n "${WAYLAND_DISPLAY:-}" ]; then
   OZONE_ARGS=(--ozone-platform=wayland --enable-features=UseOzonePlatform)
 fi
 
+# WICHTIG: kein --incognito! island.pizza speichert Spielstaende lokal im
+# Browser (IndexedDB/localStorage) - Inkognito wuerde die bei jedem
+# Neustart des Kiosks (Reboot, Absturz, manueller Neustart) verwerfen.
+# Stattdessen ein eigenes, dauerhaftes Profil, getrennt von einer evtl.
+# normalen Chromium-Nutzung auf dem Pi.
+PROFILE_DIR="$HOME/.config/lego-island-kiosk-profile"
+
 exec "$CHROMIUM_BIN" \
   "${OZONE_ARGS[@]}" \
+  --user-data-dir="$PROFILE_DIR" \
+  --no-first-run \
   --kiosk \
   --noerrdialogs \
   --disable-infobars \
@@ -38,5 +47,4 @@ exec "$CHROMIUM_BIN" \
   --check-for-update-interval=31536000 \
   --overscroll-history-navigation=0 \
   --start-fullscreen \
-  --incognito \
   "$URL"
